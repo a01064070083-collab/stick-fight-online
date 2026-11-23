@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>STICK FIGHT ARENA ONLINE</title>
+<script src="/socket.io/socket.io.js"></script>
+<style>
+:root{--bg:#080d19;--panel:#141f35;--line:#304664;--blue:#36b9ff;--red:#ff5365;--gold:#ffd66b}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:radial-gradient(circle at 50% 0%,#1b3155 0,#080d19 58%);color:#f5f8ff;font-family:Arial,"Noto Sans KR",sans-serif;min-height:100vh}
+.wrap{width:min(1120px,96vw);margin:0 auto;padding:18px 0 30px}
+header{text-align:center;margin-bottom:16px}
+h1{margin:4px 0;color:#61ceff;font-size:clamp(26px,5vw,44px);letter-spacing:2px;text-shadow:0 0 22px #168cff}
+.subtitle{color:#9eafca;font-size:12px;letter-spacing:3px}
+.panel{background:linear-gradient(145deg,#182741,#101a2d);border:1px solid var(--line);border-radius:14px;padding:14px;margin:12px 0;box-shadow:0 12px 30px #0005}
+.room-box{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:center}
+.room-code-badge{font-size:22px;font-weight:900;letter-spacing:4px;color:#ffe36b;background:#0b1526;border:1px solid #ffd66b;padding:8px 16px;border-radius:10px}
+.selects{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.player-select{border-radius:10px;padding:12px;border:1px solid #34516f;background:#0e192b}
+.player-select.blue{border-color:#238bd0}.player-select.red{border-color:#b83d53}
+.player-select h2{font-size:15px;margin:0 0 9px}
+.blue h2{color:var(--blue)}.red h2{color:var(--red)}
+select,button,input{font:inherit}
+select{width:100%;padding:10px;border-radius:8px;color:white;background:#243753;border:1px solid #55708f}
+select:disabled{opacity:.65;cursor:not-allowed}
+.stats{display:flex;gap:10px;flex-wrap:wrap;margin-top:9px;color:#b9c8df;font-size:12px}
+.stat{background:#ffffff0b;padding:5px 8px;border-radius:6px}
+.topbar{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;margin:14px 0}
+.hud{min-width:0}.hud.right{text-align:right}
+.hud-name{font-size:14px;font-weight:bold;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar{height:18px;background:#344055;border-radius:20px;overflow:hidden;border:1px solid #61718a}
+.fill{height:100%;width:100%;transition:width .12s;background:linear-gradient(90deg,#167ad6,#50d5ff)}
+.right .fill{margin-left:auto;background:linear-gradient(90deg,#ff9b4e,#ff3e67)}
+.hptext{font-size:11px;color:#b9c8df;margin-top:3px}
+.clock{text-align:center;font-size:30px;font-weight:900;color:var(--gold);min-width:65px}
+.clock small{display:block;font-size:9px;letter-spacing:2px;color:#9eafca}
+canvas{display:block;width:100%;height:auto;aspect-ratio:16/8.2;background:#101c33;border:2px solid #3a5578;border-radius:14px;box-shadow:0 0 28px #168cff22;touch-action:none}
+.actions{display:flex;justify-content:center;gap:9px;flex-wrap:wrap;margin:13px 0}
+button{border:0;border-radius:9px;padding:11px 17px;font-weight:bold;cursor:pointer;color:white;background:#176fc0;box-shadow:0 4px 0 #0c477f;transition:.12s}
+button:hover{filter:brightness(1.18);transform:translateY(-1px)}
+button:disabled{opacity:.5;cursor:not-allowed;transform:none}
+button.secondary{background:#35445d;box-shadow:0 4px 0 #202b3e}
+button.gold{background:#b77c19;box-shadow:0 4px 0 #70490d}
+#status{text-align:center;min-height:27px;color:var(--gold);font-weight:bold;font-size:17px;margin:9px}
+.help{color:#b9c8df;font-size:12px;line-height:1.8;text-align:center}
+.touch-controls{display:none}
+.touch-side{background:#0c1728;border:1px solid #344966;border-radius:10px;padding:10px}
+.touch-side h3{font-size:13px;margin:0 0 8px;text-align:center}
+.touch-side.blue h3{color:var(--blue)}.touch-side.red h3{color:var(--red)}
+.touch-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.touch-grid button{padding:14px 4px;font-size:13px;touch-action:none;user-select:none}
+@media(max-width:768px){
+ .touch-controls{display:block}
+ .help{display:none}
+ .touch-grid{grid-template-columns:repeat(4,1fr)}
+ .touch-grid button{min-height:46px}
+}
+@media(orientation:landscape) and (max-height:520px) and (max-width:900px){
+ html,body{width:100%;height:100%;overflow:hidden}
+ .wrap{width:100%;height:100dvh;max-width:none;margin:0;padding:2px 5px;overflow:hidden}
+ header{display:none}#battleScreen{height:100%;width:100%;gap:2px}
+ #battleScreen .topbar{margin:1px 0;gap:5px}.hud-name{font-size:9px;margin-bottom:2px}
+ .bar{height:10px}.hptext{font-size:8px;margin-top:1px}.clock{font-size:17px;min-width:42px}.clock small{font-size:7px}
+ #battleScreen canvas{width:100%;height:auto;min-height:0;max-height:none;flex:1 1 0;aspect-ratio:auto}
+ #battleScreen #status{font-size:11px;min-height:14px;margin:0}
+ #battleScreen .actions{margin:1px 0;gap:5px}#battleScreen .actions button{padding:4px 8px;font-size:10px}
+ .touch-side{padding:4px}.touch-side h3{display:none}.touch-grid button{min-height:34px;padding:5px 2px;font-size:11px}
+}
+#winnerOverlay{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(3,8,20,.88);backdrop-filter:blur(7px)}
+#winnerOverlay[hidden]{display:none!important}
+.winner-card{width:min(92vw,560px);padding:30px 20px;text-align:center;border:3px solid #ffd66b;border-radius:24px;background:linear-gradient(145deg,#263b60,#101a30);box-shadow:0 0 45px rgba(255,214,107,.35)}
+.winner-cup{font-size:clamp(48px,12vw,86px);line-height:1.1}
+.winner-caption{font-size:clamp(18px,4vw,25px);color:#ffd66b;font-weight:900;margin:10px 0}
+.winner-name{font-size:clamp(32px,8vw,62px);font-weight:1000;line-height:1.2;color:#fff}
+.winner-score{font-size:clamp(24px,6vw,38px);font-weight:900;color:#ffd66b;margin:14px 0 22px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header><h1>STICK FIGHT ARENA</h1><div class="subtitle">ONLINE MULTIPLAYER EDITION</div></header>
+
+<section id="lobbyScreen" class="panel">
+ <h2 style="text-align:center;color:#ffd66b;margin:4px 0 14px">🌐 온라인 1:1 대전 로비</h2>
+ <div class="room-box">
+  <button id="createRoomBtn" style="font-size:16px;padding:13px 22px">방 만들기 (초대 코드 생성)</button>
+  <span style="color:#9eafca">또는</span>
+  <input id="joinCodeInput" maxlength="4" placeholder="초대 코드 4자리" style="width:150px;padding:11px;border-radius:8px;background:#243753;border:1px solid #55708f;color:white;text-align:center;text-transform:uppercase;font-weight:bold;letter-spacing:3px">
+  <button id="joinRoomBtn" class="gold">코드로 입장</button>
+ </div>
+ <div id="lobbyMsg" style="text-align:center;margin-top:12px;color:#ffd66b;font-weight:bold">방을 만들거나 친구의 초대 코드를 입력하세요!</div>
+</section>
+
+<section id="menuScreen" hidden>
+ <section class="panel" style="text-align:center">
+  <div style="font-size:13px;color:#9eafca;margin-bottom:6px">친구에게 아래 초대 코드를 공유하세요</div>
+  <div style="display:flex;gap:10px;justify-content:center;align-items:center;flex-wrap:wrap">
+   <span id="displayRoomCode" class="room-code-badge">----</span>
+   <button id="copyCodeBtn" class="secondary">코드 복사</button>
+   <span id="roleBadge" style="font-weight:bold;color:#61ceff">내 역할: 확인 중...</span>
+  </div>
+  <div id="connectionState" style="margin-top:8px;font-size:13px;color:#ffd66b">상대방 접속 대기 중...</div>
+ </section>
+
+ <section class="panel">
+  <h2 style="text-align:center;color:#ffd66b;margin:4px 0 14px">캐릭터와 맵을 선택하세요</h2>
+  <div class="selects">
+   <div class="player-select blue">
+    <h2>🔵 PLAYER 1 (방장)</h2>
+    <select id="char1"></select><div class="stats" id="stats1"></div>
+   </div>
+   <div class="player-select red">
+    <h2>🔴 PLAYER 2 (참가자)</h2>
+    <select id="char2"></select><div class="stats" id="stats2"></div>
+   </div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+   <div class="player-select"><div style="font-weight:bold;margin-bottom:7px">🗺️ 전투 맵 (방장 선택)</div>
+    <select id="mapSelect"><option value="arena">네온 경기장</option><option value="forest">초록 숲</option><option value="desert">뜨거운 사막</option><option value="space">우주 공간</option></select>
+   </div>
+   <div class="player-select"><div style="font-weight:bold;margin-bottom:7px">⏱️ 라운드 시간 (방장 선택)</div>
+    <select id="duration"><option value="60">60초</option><option value="90" selected>90초</option><option value="120">120초</option></select>
+   </div>
+  </div>
+  <div style="text-align:center;margin-top:12px;color:#ffd66b">현재 점수: <span id="score">0 - 0</span> (3점 선취 승리)</div>
+ </section>
+
+ <section class="panel" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+  <label for="secretCode" style="font-weight:bold;color:#ffd66b">🔒 내 비밀 캐릭터 코드</label>
+  <input id="secretCode" type="password" inputmode="numeric" placeholder="코드 입력" style="flex:1;min-width:130px;padding:10px;border-radius:8px;background:#243753;border:1px solid #55708f;color:white">
+  <button id="unlockSecret" class="gold">잠금 해제</button>
+  <span id="secretMsg" style="font-size:12px;color:#b9c8df">8335 또는 1234567 입력</span>
+ </section>
+
+ <section class="panel">
+  <div style="text-align:center;font-weight:bold;margin-bottom:8px">선택한 캐릭터 미리보기</div>
+  <canvas id="preview" width="1000" height="240" style="display:block;width:100%;height:auto;aspect-ratio:25/6;background:#101c33;border:1px solid #3a5578;border-radius:10px"></canvas>
+ </section>
+
+ <div class="actions"><button id="start" style="font-size:19px;padding:15px 34px" disabled>상대방 입장 대기 중...</button></div>
+ <div id="menuStatus" style="text-align:center;min-height:24px;color:#ffd66b;margin:8px">각자 자신의 캐릭터를 선택하세요!</div>
+</section>
+
+<section id="battleScreen" hidden>
+ <div class="topbar">
+  <div class="hud"><div class="hud-name" id="name1">PLAYER 1</div><div class="bar"><div class="fill" id="hp1"></div></div><div class="hptext" id="hptext1">100 / 100 HP</div></div>
+  <div class="clock"><span id="timer">90</span><small>SECONDS</small></div>
+  <div class="hud right"><div class="hud-name" id="name2">PLAYER 2</div><div class="bar"><div class="fill" id="hp2"></div></div><div class="hptext" id="hptext2">100 / 100 HP</div></div>
+ </div>
+ <canvas id="game" width="1000" height="512"></canvas>
+ <div id="status">FIGHT!</div>
+ <div class="actions">
+  <button id="pause" class="secondary">일시정지</button>
+  <button id="reset" class="gold">방 로비로 돌아가기</button>
+ </div>
+ <section class="panel help">
+  <div><strong>내 기기 조작키 (PC):</strong> 이동 A / D (또는 ← / →) · 점프 W (또는 ↑) · 일반 공격 F (또는 J) · 강공격 G (또는 K) · 고유 스킬 H (또는 L) · 방어 S (또는 ↓)</div>
+ </section>
+ <section class="panel touch-controls">
+  <div id="myTouchSide" class="touch-side blue">
+   <h3 id="myTouchTitle">내 캐릭터 터치 조작</h3>
+   <div class="touch-grid">
+    <button data-hold="left">◀</button>
+    <button data-hold="jump">점프</button>
+    <button data-hold="right">▶</button>
+    <button data-act="attack">공격</button>
+    <button data-act="heavy">강공격</button>
+    <button data-act="skill">스킬</button>
+    <button data-hold="guard">방어</button>
+   </div>
+  </div>
+ </section>
+</section>
+</div>
+
+<div id="winnerOverlay" hidden>
+ <div class="winner-card">
+  <div class="winner-cup">🏆</div>
+  <div class="winner-caption">최종 우승</div>
+  <div id="winnerName" class="winner-name">PLAYER 1 승리!</div>
+  <div id="winnerScore" class="winner-score">3 - 0</div>
+  <button id="winnerConfirm" class="gold">확인 · 대기실로</button>
+ </div>
+</div>
+
+<script>
+(() => {
+"use strict";
+const socket = io();
+let myRole = null;
+let roomCode = null;
+let guestConnected = false;
+
+const canvas = document.getElementById("game"), ctx = canvas.getContext("2d");
+const W = 1000, H = 512, FLOOR = 420;
+const roster = [
+ {id:"normal",name:"기본 쫄라맨",color:"#39baff",speed:5.5,jump:13,power:10,def:1,skill:"에너지 파동"},
+ {id:"fire",name:"화염 쫄라맨",color:"#ff542e",speed:5.2,jump:12,power:11,def:0,skill:"화염 폭발"},
+ {id:"ice",name:"얼음 쫄라맨",color:"#62eaff",speed:4.9,jump:12,power:9,def:2,skill:"빙결 파동"},
+ {id:"lightning",name:"번개 쫄라맨",color:"#ffe34d",speed:7,jump:14,power:9,def:0,skill:"번개 돌진"},
+ {id:"shadow",name:"그림자 쫄라맨",color:"#b17aff",speed:6.5,jump:13,power:10,def:0,skill:"그림자 폭발"},
+ {id:"sword",name:"검 쫄라맨",color:"#dce8f5",speed:5.4,jump:12,power:13,def:0,skill:"검기 베기"},
+ {id:"robot",name:"로봇 쫄라맨",color:"#9baabd",speed:4.6,jump:11,power:10,def:3,skill:"충격 펄스"},
+ {id:"poison",name:"독 쫄라맨",color:"#8be34f",speed:5.2,jump:12,power:9,def:1,skill:"독성 구름"},
+ {id:"light",name:"빛 쫄라맨",color:"#fff0a3",speed:6,jump:14,power:10,def:1,skill:"섬광"},
+ {id:"wind",name:"바람 쫄라맨",color:"#61f0c7",speed:7,jump:15,power:8,def:0,skill:"회오리"},
+ {id:"gravity",name:"중력 쫄라맨",color:"#c17aff",speed:4.6,jump:11,power:12,def:2,skill:"중력장"},
+ {id:"dragon",name:"드래곤 쫄라맨",color:"#ff9147",speed:5.5,jump:13,power:12,def:1,skill:"용의 파동"}
+];
+const secretFighters = {
+ secret: {id:"secret",name:"👑 절대자 쫄라맨",color:"#ffdf4d",speed:9,jump:19,power:75,def:35,skill:"천지개벽"},
+ secret2: {id:"secret2",name:"🌌 창조신 쫄라맨",color:"#b98cff",speed:8,jump:18,power:68,def:30,skill:"우주창조"}
+};
+const $ = id => document.getElementById(id);
+
+let fighters = [], effects = [], running = false, paused = false, remaining = 90, last = 0, shake = 0, matchStarted = false;
+let scores = [0, 0], currentMap = "arena", statusText = "FIGHT!";
+const localHold = new Set();
+const remoteHold = new Set();
+
+$("createRoomBtn").addEventListener("click", () => socket.emit("createRoom"));
+$("joinRoomBtn").addEventListener("click", () => {
+ const c = $("joinCodeInput").value.trim().toUpperCase();
+ if (c.length < 4) { $("lobbyMsg").textContent = "4자리 초대 코드를 입력하세요."; return; }
+ socket.emit("joinRoom", c);
+});
+$("copyCodeBtn").addEventListener("click", () => {
+ if (!roomCode) return;
+ navigator.clipboard?.writeText(roomCode);
+ $("copyCodeBtn").textContent = "복사됨!";
+ setTimeout(() => $("copyCodeBtn").textContent = "코드 복사", 1500);
+});
+
+socket.on("roomError", msg => { $("lobbyMsg").textContent = msg; $("menuStatus").textContent = msg; });
+socket.on("roomClosed", msg => { alert(msg); location.reload(); });
+
+socket.on("roomJoined", ({ code, role, settings, guestReady }) => {
+ roomCode = code;
+ myRole = role;
+ guestConnected = guestReady;
+ $("lobbyScreen").hidden = true;
+ $("menuScreen").hidden = false;
+ $("displayRoomCode").textContent = code;
+ $("roleBadge").textContent = role === 0 ? "내 역할: 🔵 PLAYER 1 (방장)" : "내 역할: 🔴 PLAYER 2 (참가자)";
+ $("roleBadge").style.color = role === 0 ? "#36b9ff" : "#ff5365";
+ $("myTouchSide").className = "touch-side " + (role === 0 ? "blue" : "red");
+ $("myTouchTitle").textContent = role === 0 ? "🔵 PLAYER 1 조작" : "🔴 PLAYER 2 조작";
+
+ $("char1").disabled = role !== 0;
+ $("char2").disabled = role !== 1;
+ $("mapSelect").disabled = role !== 0;
+ $("duration").disabled = role !== 0;
+
+ updateGuestUI();
+ applySettings(settings);
+});
+
+socket.on("guestStatus", ({ connected }) => {
+ guestConnected = connected;
+ updateGuestUI();
+});
+
+function updateGuestUI() {
+ if (myRole === 0) {
+  $("connectionState").textContent = guestConnected ? "✅ PLAYER 2 입장 완료! 전투를 시작할 수 있습니다." : "⏳ 친구가 초대 코드를 입력할 때까지 대기 중...";
+  $("start").disabled = !guestConnected;
+  $("start").textContent = guestConnected ? "전투 시작" : "상대방 입장 대기 중...";
+ } else {
+  $("connectionState").textContent = "✅ 방에 입장했습니다! 방장이 전투를 시작하면 자동 시작됩니다.";
+  $("start").disabled = true;
+  $("start").textContent = "방장이 시작하기를 기다리는 중...";
+ }
+}
+
+function applySettings(s) {
+ ["secret", "secret2"].forEach(id => {
+  ensureOption($("char1"), id, (s.unlocked1 || []).includes(id));
+  ensureOption($("char2"), id, (s.unlocked2 || []).includes(id));
+ });
+ $("char1").value = s.char1;
+ $("char2").value = s.char2;
+ $("mapSelect").value = s.map;
+ $("duration").value = String(s.duration);
+ currentMap = s.map;
+ remaining = Number(s.duration);
+ if (!matchStarted) setupFighters();
+ drawPreview();
+}
+
+function ensureOption(sel, id, shouldExist) {
+ const exists = [...sel.options].some(o => o.value === id);
+ if (shouldExist && !exists) {
+  const c = secretFighters[id];
+  const o = document.createElement("option");
+  o.value = c.id; o.textContent = c.name;
+  sel.appendChild(o);
+ }
+}
+
+socket.on("settingsUpdated", applySettings);
+
+function fillSelects() {
+ for (let i = 1; i <= 2; i++) {
+  const sel = $("char" + i);
+  roster.forEach(c => {
+   const o = document.createElement("option");
+   o.value = c.id; o.textContent = c.name;
+   sel.appendChild(o);
+  });
+ }
+ $("char2").value = "fire";
+ $("char1").addEventListener("change", () => {
+  if (myRole === 0) socket.emit("updateSettings", { char1: $("char1").value });
+ });
+ $("char2").addEventListener("change", () => {
+  if (myRole === 1) socket.emit("updateSettings", { char2: $("char2").value });
+ });
+ $("mapSelect").addEventListener("change", () => {
+  if (myRole === 0) socket.emit("updateSettings", { map: $("mapSelect").value });
+ });
+ $("duration").addEventListener("change", () => {
+  if (myRole === 0) socket.emit("updateSettings", { duration: Number($("duration").value) });
+ });
+}
+
+function unlockSecret() {
+ const code = $("secretCode").value.trim();
+ let id = null;
+ if (code === "8335") id = "secret";
+ else if (code === "1234567") id = "secret2";
+ else {
+  $("secretMsg").textContent = "코드가 틀렸어. 다시 입력해 봐!";
+  $("secretMsg").style.color = "#ff7180";
+  return;
+ }
+ const mySel = $("char" + (myRole + 1));
+ ensureOption(mySel, id, true);
+ mySel.value = id;
+ const unlocked = [...mySel.options].map(o => o.value).filter(v => v.startsWith("secret"));
+ if (myRole === 0) socket.emit("updateSettings", { char1: id, unlocked1: unlocked });
+ else socket.emit("updateSettings", { char2: id, unlocked2: unlocked });
+ $("secretMsg").textContent = secretFighters[id].name + " 해금 성공!";
+ $("secretMsg").style.color = "#ffe36b";
+ $("secretCode").value = "";
+}
+$("unlockSecret").addEventListener("click", unlockSecret);
+
+function getChar(id) {
+ return roster.find(c => c.id === id) || secretFighters[id] || roster[0];
+}
+
+function makeFighter(index) {
+ const c = getChar($("char" + (index + 1)).value);
+ const isSecret = c.id === "secret" || c.id === "secret2";
+ return {
+  index, char: c, x: index === 0 ? 275 : 725, y: FLOOR, vx: 0, vy: 0,
+  hp: isSecret ? 300 : 100, maxHp: isSecret ? 300 : 100,
+  face: index === 0 ? 1 : -1, onGround: true,
+  cooldown: { attack: 0, heavy: 0, skill: 0 }, hurt: 0, attackPose: 0, attackStyle: c.id,
+  guard: false, flash: 0, walk: 0, freeze: 0, poison: 0, poisonTick: 0, slow: 0, shield: 0
+ };
+}
+
+function setupFighters() {
+ fighters = [makeFighter(0), makeFighter(1)];
+ fighters.forEach((p, i) => {
+  $("name" + (i + 1)).textContent = (i === 0 ? "BLUE · " : "RED · ") + p.char.name;
+  $("stats" + (i + 1)).innerHTML = `<span class="stat">속도 ${p.char.speed}</span><span class="stat">점프 ${p.char.jump}</span><span class="stat">공격 ${p.char.power}</span><span class="stat">방어 ${p.char.def}</span>`;
+ });
+ updateHud();
+}
+
+const keyMap = {
+ a: "left", arrowleft: "left",
+ d: "right", arrowright: "right",
+ w: "jump", arrowup: "jump",
+ s: "guard", arrowdown: "guard",
+ f: "attack", j: "attack",
+ g: "heavy", k: "heavy",
+ h: "skill", l: "skill"
+};
+
+function sendHoldState() {
+ if (myRole === 1) socket.emit("guestInput", { type: "hold", keys: [...localHold] });
+}
+function triggerLocalAction(act) {
+ if (!running || paused) return;
+ if (myRole === 0) doAttack(fighters[0], act);
+ else if (myRole === 1) socket.emit("guestInput", { type: "action", act });
+}
+
+window.addEventListener("keydown", e => {
+ const mapped = keyMap[e.key.toLowerCase()];
+ if (!mapped || !running || paused) return;
+ e.preventDefault();
+ if (["left", "right", "jump", "guard"].includes(mapped)) {
+  if (!localHold.has(mapped)) { localHold.add(mapped); sendHoldState(); }
+ } else if (!e.repeat) {
+  triggerLocalAction(mapped);
+ }
+});
+window.addEventListener("keyup", e => {
+ const mapped = keyMap[e.key.toLowerCase()];
+ if (mapped && localHold.delete(mapped)) sendHoldState();
+});
+window.addEventListener("blur", () => { localHold.clear(); sendHoldState(); });
+
+function bindTouch() {
+ document.querySelectorAll("[data-hold]").forEach(b => {
+  const k = b.dataset.hold;
+  const down = e => { e.preventDefault(); localHold.add(k); sendHoldState(); try { b.setPointerCapture(e.pointerId); } catch (_) {} };
+  const up = e => { e.preventDefault(); localHold.delete(k); sendHoldState(); };
+  b.addEventListener("pointerdown", down);
+  b.addEventListener("pointerup", up);
+  b.addEventListener("pointercancel", up);
+  b.addEventListener("lostpointercapture", up);
+ });
+ document.querySelectorAll("[data-act]").forEach(b => {
+  b.addEventListener("pointerdown", e => { e.preventDefault(); triggerLocalAction(b.dataset.act); });
+ });
+}
+
+socket.on("guestInput", data => {
+ if (myRole !== 0 || !running || paused) return;
+ if (data.type === "hold") {
+  remoteHold.clear();
+  (data.keys || []).forEach(k => remoteHold.add(k));
+ } else if (data.type === "action") {
+  doAttack(fighters[1], data.act);
+ }
+});
+
+function isPressed(pIndex, action) {
+ return pIndex === 0 ? localHold.has(action) : remoteHold.has(action);
+}
+
+function setStatus(txt) {
+ statusText = txt;
+ $("status").textContent = txt;
+}
+
+function doAttack(p, type) {
+ if (!running || paused || !p || p.hp <= 0 || p.cooldown[type] > 0) return;
+ if (type === "skill") { useUniqueSkill(p); return; }
+ const t = fighters[1 - p.index], c = p.char, id = c.id, heavy = type === "heavy";
+ p.cooldown[type] = heavy ? 0.78 : 0.34;
+ p.attackPose = heavy ? 0.34 : 0.25;
+ p.attackStyle = id + (heavy ? "Heavy" : "");
+ const dx = t.x - p.x, dy = Math.abs(t.y - p.y);
+ let range = heavy ? 125 : 90, damage = c.power * (heavy ? 1.65 : 1), knock = heavy ? 9 : 5, extraText = "";
+ if (id === "secret" || id === "secret2") { range = heavy ? 240 : 190; damage = heavy ? 155 : 95; knock = heavy ? 22 : 16; extraText = heavy ? "신의 파쇄" : "절대 주먹"; }
+ if (id === "secret2") { range = heavy ? 270 : 210; damage = heavy ? 145 : 88; knock = heavy ? 20 : 15; extraText = heavy ? "우주 붕괴" : "성운 타격"; }
+ switch (id) {
+  case "normal": range = heavy ? 125 : 82; extraText = "연속 주먹"; break;
+  case "fire": range = heavy ? 145 : 105; damage *= heavy ? 1.12 : 1.08; extraText = "불꽃 발차기"; break;
+  case "ice": range = heavy ? 115 : 78; extraText = "얼음 손날"; break;
+  case "lightning": range = heavy ? 105 : 92; damage *= heavy ? 1.05 : 0.78; knock = heavy ? 8 : 4; extraText = "초고속 찌르기"; break;
+  case "shadow": range = heavy ? 95 : 72; damage *= heavy ? 1.3 : 0.9; extraText = "그림자 할퀴기"; break;
+  case "sword": range = heavy ? 165 : 120; damage *= heavy ? 1.18 : 0.92; knock = heavy ? 12 : 7; extraText = "검 베기"; break;
+  case "robot": range = heavy ? 115 : 80; damage *= heavy ? 1.35 : 1.15; knock = heavy ? 13 : 6; extraText = "강철 해머"; break;
+  case "poison": range = heavy ? 112 : 88; extraText = "독 발톱"; break;
+  case "light": range = heavy ? 105 : 96; damage *= heavy ? 1.05 : 0.9; extraText = "빛의 손바닥"; break;
+  case "wind": range = heavy ? 150 : 115; damage *= heavy ? 0.95 : 0.82; knock = heavy ? 8 : 7; extraText = "회전 발차기"; break;
+  case "gravity": range = heavy ? 130 : 75; damage *= heavy ? 1.35 : 0.85; knock = heavy ? 5 : 3; extraText = "중력 주먹"; break;
+  case "dragon": range = heavy ? 145 : 100; damage *= heavy ? 1.2 : 1.08; knock = heavy ? 12 : 7; extraText = "용의 발톱"; break;
+ }
+ const facing = (dx * p.face) > 0, hit = facing && Math.abs(dx) < range && dy < 105 && t.hurt <= 0;
+ if (hit) {
+  const blocked = t.guard && t.onGround;
+  const dealt = Math.max(1, Math.round(damage - (blocked ? c.def + damage * .72 : t.char.def) - (t.shield > 0 ? damage * .45 : 0)));
+  t.hp = Math.max(0, t.hp - dealt); t.hurt = blocked ? .18 : .42; t.flash = .18;
+  t.vx = p.face * (blocked ? 2.5 : knock); t.vy = blocked ? -1 : heavy ? -5 : -2;
+  if (!blocked) {
+   if (id === "ice") t.slow = Math.max(t.slow, heavy ? 1.4 : .65);
+   if (id === "poison") { t.poison = Math.max(t.poison, heavy ? 2.4 : 1.2); t.poisonTick = .25; }
+   if (id === "fire" && heavy) { t.poison = Math.max(t.poison, 1.5); t.poisonTick = .35; }
+   if (id === "wind" && heavy) t.vy = -9;
+   if (id === "gravity") t.vx *= .45;
+  }
+  spawnBurst(t.x, t.y - 65, c.color, heavy ? "heavy" : "attack");
+  if (t.hp <= 0) endMatch(p.index === 0 ? "PLAYER 1 승리!" : "PLAYER 2 승리!");
+ } else {
+  effects.push({ kind: "slash", x: p.x + p.face * 42, y: p.y - 72, color: c.color, life: .18, max: .18 });
+ }
+ const fx = { fire: "flameSlash", ice: "iceSlash", lightning: "sparkSlash", shadow: "shadowSlash", sword: "swordwave", robot: "impact", poison: "poisonSlash", light: "lightSlash", wind: "windSlash", gravity: "gravitySlash", dragon: "dragonSlash" };
+ if (fx[id]) effects.push({ kind: fx[id], x: p.x + p.face * (range * .48), y: p.y - 72, color: c.color, life: .32, max: .32, face: p.face });
+ setStatus((p.index === 0 ? "PLAYER 1 · " : "PLAYER 2 · ") + extraText + (heavy ? " 강공격!" : "!"));
+}
+
+function useUniqueSkill(p) {
+ const t = fighters[1 - p.index], id = p.char.id, c = p.char;
+ p.cooldown.skill = id === "secret" ? 3 : 6; p.attackPose = .55;
+ if (id === "secret" || id === "secret2") {
+  const range = id === "secret" ? 480 : 560, damage = id === "secret" ? 190 : 165;
+  p.face = t.x >= p.x ? 1 : -1;
+  if (id === "secret") {
+   p.hp = Math.min(p.maxHp, p.hp + 65);
+   effects.push({ kind: "secretNova", x: p.x, y: p.y - 65, color: "#ffdf4d", life: 1, max: 1 });
+   if (Math.abs(t.x - p.x) < range && Math.abs(t.y - p.y) < 220 && t.hurt <= 0) {
+    t.hp = Math.max(0, t.hp - damage); t.hurt = .95; t.vx = p.face * 24; t.vy = -14;
+    spawnBurst(t.x, t.y - 65, "#ffdf4d", "skill");
+    if (t.hp <= 0) endMatch(p.index === 0 ? "PLAYER 1 승리!" : "PLAYER 2 승리!");
+   }
+   setStatus("절대자 쫄라맨 · 천지개벽!");
+  } else {
+   p.hp = Math.min(p.maxHp, p.hp + 40);
+   effects.push({ kind: "cosmicNova", x: p.x, y: p.y - 65, color: "#b98cff", life: 1.2, max: 1.2 });
+   if (Math.abs(t.x - p.x) < range && Math.abs(t.y - p.y) < 250 && t.hurt <= 0) {
+    t.hp = Math.max(0, t.hp - damage); t.hurt = 1.0; t.vx = (p.x - t.x) * .09; t.vy = -17; t.slow = 2.5;
+    spawnBurst(t.x, t.y - 65, "#b98cff", "skill");
+    if (t.hp <= 0) endMatch(p.index === 0 ? "PLAYER 1 승리!" : "PLAYER 2 승리!");
+   }
+   setStatus("창조신 쫄라맨 · 우주창조!");
+  }
+  return;
+ }
+ const d = Math.abs(t.x - p.x), front = (t.x - p.x) * p.face > 0;
+ const near = front && d < 230 && Math.abs(t.y - p.y) < 130;
+ const hit = (damage, knock = 8) => {
+  if (!near || t.hurt > 0) return;
+  const blocked = t.guard && t.onGround;
+  const dealt = Math.max(1, Math.round(damage - (blocked ? damage * .65 + t.char.def : c.def) - (t.shield > 0 ? damage * .45 : 0)));
+  t.hp = Math.max(0, t.hp - dealt); t.hurt = blocked ? .2 : .55;
+  t.vx = p.face * (blocked ? 2.5 : knock); t.vy = blocked ? -1 : -5;
+  spawnBurst(t.x, t.y - 65, c.color, "skill");
+  if (t.hp <= 0) endMatch(p.index === 0 ? "PLAYER 1 승리!" : "PLAYER 2 승리!");
+ };
+ const projectile = (kind, speed, damage, size, life = 1.5) => {
+  p.face = t.x >= p.x ? 1 : -1;
+  effects.push({ kind: "projectile", style: kind, x: p.x + p.face * 35, y: p.y - 78, prevX: p.x + p.face * 35, vx: p.face * speed, vy: 0, life, max: life, size, owner: p.index, damage, skillId: id, color: c.color, hit: false });
+ };
+ let msg = c.skill + "!";
+ switch (id) {
+  case "normal": projectile("orb", 9, c.power * 2.4, 18, 1.7); msg = "에너지 구체 발사!"; break;
+  case "fire": projectile("flame", 7, c.power * 2.8, 25, 1.8); msg = "화염구 발사!"; break;
+  case "ice": projectile("ice", 8, c.power * 1.8, 22, 1.7); msg = "얼음 창 발사!"; break;
+  case "lightning": { const old = p.x; p.x = Math.max(45, Math.min(W - 45, p.x + p.face * 175)); if (Math.abs(t.x - p.x) < 115) hit(c.power * 2.8, 14); effects.push({ kind: "trail", x: old, y: p.y - 65, color: "#ffe76b", life: .35, max: .35 }); spawnBurst(p.x, p.y - 65, "#ffe76b", "skill"); msg = "번개 섬광 돌진!"; break; }
+  case "shadow": { const old = p.x; p.x = Math.max(45, Math.min(W - 45, t.x - (t.x >= p.x ? 1 : -1) * 65)); p.face = t.x >= p.x ? 1 : -1; effects.push({ kind: "shadow", x: old, y: p.y - 65, color: "#a879ff", life: .55, max: .55 }); hit(c.power * 2.7, 10); spawnBurst(p.x, p.y - 65, "#a879ff", "skill"); msg = "암흑 순간이동!"; break; }
+  case "sword": if (near) hit(c.power * 3.3, 12); effects.push({ kind: "swordwave", x: p.x + p.face * 65, y: p.y - 80, color: "#e7f4ff", life: .42, max: .42 }); msg = "초승달 검기!"; break;
+  case "robot": p.shield = 3.2; effects.push({ kind: "shield", x: p.x, y: p.y - 70, color: "#55eaff", life: 3.2, max: 3.2 }); if (near) hit(c.power * 1.5, 4); msg = "에너지 실드 전개!"; break;
+  case "poison": effects.push({ kind: "cloud", x: p.x + p.face * 110, y: p.y - 65, color: "#9cff45", life: 3, max: 3, owner: p.index }); msg = "맹독 구름 생성!"; break;
+  case "light": p.hp = Math.min(p.maxHp, p.hp + 30); effects.push({ kind: "heal", x: p.x, y: p.y - 85, color: "#fff28a", life: 1.1, max: 1.1 }); if (near) hit(c.power * 1.4, 7); msg = "성스러운 빛! 체력 30 회복!"; break;
+  case "wind": effects.push({ kind: "tornado", x: p.x + p.face * 125, y: FLOOR - 12, color: "#8ef4ff", life: 1.7, max: 1.7, owner: p.index }); msg = "회오리 소환!"; break;
+  case "gravity": effects.push({ kind: "gravity", x: p.x + p.face * 145, y: p.y - 65, color: "#c18aff", life: 1.5, max: 1.5, owner: p.index }); msg = "중력 블랙홀 생성!"; break;
+  case "dragon": projectile("dragon", 5, c.power * 3.6, 34, 2.2); msg = "용의 화염 브레스!"; break;
+ }
+ setStatus((p.index === 0 ? "PLAYER 1 · " : "PLAYER 2 · ") + msg);
+}
+
+function spawnBurst(x, y, color, type) {
+ const count = type === "skill" ? 40 : type === "heavy" ? 24 : 14;
+ effects.push({ kind: "ring", x, y, color, life: .48, max: .48, r: type === "skill" ? 155 : type === "heavy" ? 105 : 60, width: type === "skill" ? 12 : 7 });
+ for (let i = 0; i < count; i++) {
+  const a = Math.random() * Math.PI * 2, s = (type === "skill" ? 4 : 2) + Math.random() * (type === "skill" ? 11 : 7);
+  effects.push({ kind: "particle", x, y, color, vx: Math.cos(a) * s, vy: Math.sin(a) * s, size: 2 + Math.random() * 5, life: .35 + Math.random() * .35, max: .7 });
+ }
+ shake = type === "skill" ? 13 : type === "heavy" ? 8 : 4;
+}
+
+function updateHost(dt) {
+ if (!running || paused || myRole !== 0) return;
+ remaining -= dt;
+ if (remaining <= 0) {
+  remaining = 0;
+  endMatch(fighters[0].hp === fighters[1].hp ? "무승부!" : fighters[0].hp > fighters[1].hp ? "PLAYER 1 시간 승리!" : "PLAYER 2 시간 승리!");
+ }
+ fighters.forEach(p => {
+  Object.keys(p.cooldown).forEach(k => p.cooldown[k] = Math.max(0, p.cooldown[k] - dt));
+  p.hurt = Math.max(0, p.hurt - dt); p.attackPose = Math.max(0, p.attackPose - dt);
+  p.freeze = Math.max(0, p.freeze - dt); p.slow = Math.max(0, p.slow - dt); p.shield = Math.max(0, p.shield - dt);
+  if (p.poison > 0) {
+   p.poison = Math.max(0, p.poison - dt); p.poisonTick -= dt;
+   if (p.poisonTick <= 0 && p.hp > 0) {
+    p.hp = Math.max(0, p.hp - 2); p.poisonTick = .55;
+    if (p.hp <= 0) endMatch(p.index === 0 ? "PLAYER 2 승리!" : "PLAYER 1 승리!");
+   }
+  }
+  p.guard = isPressed(p.index, "guard");
+  const left = isPressed(p.index, "left"), right = isPressed(p.index, "right");
+  let move = (right ? 1 : 0) - (left ? 1 : 0);
+  if (p.hurt > 0) move *= .25;
+  if (p.freeze > 0) move = 0;
+  if (move) p.face = move;
+  p.vx = move * p.char.speed * (p.guard ? .42 : 1) * (p.slow > 0 ? .45 : 1);
+  if (isPressed(p.index, "jump") && p.onGround && p.hurt <= 0 && p.freeze <= 0) { p.vy = -p.char.jump; p.onGround = false; }
+  p.x += p.vx * dt * 60; p.y += p.vy * dt * 60; p.vy += .62 * dt * 60;
+  if (p.y >= FLOOR) { p.y = FLOOR; p.vy = 0; p.onGround = true; }
+  p.x = Math.max(45, Math.min(W - 45, p.x));
+  p.walk += Math.abs(p.vx) * dt;
+ });
+ const [a, b] = fighters, dist = b.x - a.x;
+ if (Math.abs(dist) < 43) { const push = (43 - Math.abs(dist)) / 2; a.x -= Math.sign(dist || 1) * push; b.x += Math.sign(dist || 1) * push; }
+
+ for (let i = effects.length - 1; i >= 0; i--) {
+  const e = effects[i]; e.life -= dt;
+  if (e.kind === "particle") { e.x += e.vx * dt * 60; e.y += e.vy * dt * 60; e.vx *= .985; e.vy *= .985; }
+  if (e.kind === "projectile") {
+   e.prevX = e.x; e.x += e.vx * dt * 60; e.y += e.vy * dt * 60;
+   const target = fighters[1 - e.owner];
+   if (target && (((target.x - e.prevX) * (target.x - e.x) <= 0) || Math.abs(target.x - e.x) < e.size + 42) && Math.abs((target.y - 70) - e.y) < e.size + 95 && !e.hit) {
+    e.hit = true; e.life = 0;
+    if (target.hurt <= 0) {
+     target.hp = Math.max(0, target.hp - Math.max(1, Math.round(e.damage - target.char.def)));
+     target.hurt = .65; target.vx = Math.sign(e.vx) * 11; target.vy = -7;
+     if (e.skillId === "ice") target.freeze = 1.8;
+     spawnBurst(target.x, target.y - 65, e.color, "skill");
+     if (target.hp <= 0) endMatch(e.owner === 0 ? "PLAYER 1 승리!" : "PLAYER 2 승리!");
+    }
+   }
+  }
+  if (e.kind === "cloud" || e.kind === "tornado" || e.kind === "gravity") {
+   const target = fighters[1 - e.owner];
+   if (target && Math.abs(target.x - e.x) < (e.kind === "gravity" ? 175 : 95) && Math.abs(target.y - e.y) < 150) {
+    if (e.kind === "gravity") { target.vx += (e.x - target.x) * dt * 1.8; target.slow = 1.2; }
+    else if (e.kind === "tornado") { target.vy = -7; target.vx += (e.x - target.x) * dt * 2; }
+    else if (target.hurt <= 0) { target.poison = 2.5; target.poisonTick = .1; }
+   }
+  }
+  if (e.life <= 0) effects.splice(i, 1);
+ }
+ shake = Math.max(0, shake - dt * 30);
+ updateHud();
+
+ socket.emit("syncState", {
+  fighters: fighters.map(p => ({
+   index: p.index, charId: p.char.id, x: p.x, y: p.y, hp: p.hp, maxHp: p.maxHp,
+   face: p.face, onGround: p.onGround, hurt: p.hurt, attackPose: p.attackPose,
+   attackStyle: p.attackStyle, guard: p.guard, walk: p.walk
+  })),
+  effects, remaining, scores, shake, statusText, running, matchStarted
+ });
+}
+
+socket.on("syncState", state => {
+ if (myRole !== 1) return;
+ remaining = state.remaining;
+ scores = state.scores;
+ shake = state.shake;
+ effects = state.effects;
+ setStatus(state.statusText);
+ $("score").textContent = scores[0] + " - " + scores[1];
+ state.fighters.forEach((sf, i) => {
+  if (!fighters[i]) return;
+  Object.assign(fighters[i], sf);
+  fighters[i].char = getChar(sf.charId);
+ });
+ updateHud();
+ if (!state.matchStarted && !$("battleScreen").hidden) {
+  running = false; matchStarted = false;
+  $("menuScreen").hidden = false; $("battleScreen").hidden = true;
+  if (scores[0] >= 3 || scores[1] >= 3) {
+   $("winnerName").textContent = scores[0] >= 3 ? "PLAYER 1 최종 승리!" : "PLAYER 2 최종 승리!";
+   $("winnerScore").textContent = "최종 점수  " + scores[0] + " - " + scores[1];
+   $("winnerOverlay").hidden = false;
+  }
+ }
+});
+
+function endMatch(message) {
+ if (!running) return;
+ running = false;
+ const winner = message.includes("PLAYER 1") ? 0 : message.includes("PLAYER 2") ? 1 : -1;
+ if (winner >= 0) scores[winner]++;
+ $("score").textContent = scores[0] + " - " + scores[1];
+ if (scores[0] >= 3 || scores[1] >= 3) {
+  const finalMessage = scores[0] >= 3 ? "PLAYER 1 최종 승리!" : "PLAYER 2 최종 승리!";
+  setStatus("🏆 " + finalMessage);
+  $("winnerName").textContent = finalMessage;
+  $("winnerScore").textContent = "최종 점수  " + scores[0] + " - " + scores[1];
+  $("menuScreen").hidden = false; $("battleScreen").hidden = true; matchStarted = false;
+  $("winnerOverlay").hidden = false;
+  socket.emit("syncState", { fighters, effects: [], remaining, scores, shake: 0, statusText, running: false, matchStarted: false });
+  return;
+ }
+ fighters.forEach((p, i) => {
+  p.hp = p.maxHp; p.x = i === 0 ? 275 : 725; p.y = FLOOR; p.vx = 0; p.vy = 0; p.face = i === 0 ? 1 : -1;
+  p.onGround = true; p.hurt = 0; p.cooldown = { attack: 0, heavy: 0, skill: 0 };
+  p.attackPose = 0; p.guard = false; p.freeze = 0; p.poison = 0; p.poisonTick = 0; p.slow = 0; p.shield = 0;
+ });
+ effects.length = 0; shake = 0; remaining = Number($("duration").value); updateHud();
+ setStatus((winner < 0 ? "무승부!" : (winner === 0 ? "PLAYER 1" : "PLAYER 2") + " 라운드 승리!") + " · 다음 라운드!");
+ running = true; last = performance.now();
+}
+
+$("start").addEventListener("click", () => {
+ if (myRole === 0 && guestConnected) socket.emit("startMatch");
+});
+
+socket.on("matchStarted", settings => {
+ applySettings(settings);
+ $("winnerOverlay").hidden = true;
+ if (scores[0] >= 3 || scores[1] >= 3) { scores = [0, 0]; $("score").textContent = "0 - 0"; }
+ setupFighters();
+ running = true; paused = false; matchStarted = true;
+ effects.length = 0; shake = 0;
+ $("menuScreen").hidden = true; $("battleScreen").hidden = false;
+ setStatus("FIGHT! 먼저 3점을 따면 최종 승리!");
+ updateHud();
+ last = performance.now();
+});
+
+$("pause").addEventListener("click", () => socket.emit("pauseToggle", !paused));
+socket.on("pauseUpdated", p => {
+ paused = p;
+ $("pause").textContent = paused ? "계속하기" : "일시정지";
+ setStatus(paused ? "일시정지" : "FIGHT!");
+});
+
+$("reset").addEventListener("click", () => socket.emit("returnMenu"));
+socket.on("returnedMenu", () => {
+ running = false; paused = false; matchStarted = false; effects.length = 0;
+ $("menuScreen").hidden = false; $("battleScreen").hidden = true;
+ setupFighters();
+});
+$("winnerConfirm").addEventListener("click", () => { $("winnerOverlay").hidden = true; });
+
+function updateHud() {
+ if (!fighters.length) return;
+ fighters.forEach((p, i) => {
+  $("hp" + (i + 1)).style.width = Math.max(0, p.hp / p.maxHp * 100) + "%";
+  $("hptext" + (i + 1)).textContent = Math.ceil(p.hp) + " / " + p.maxHp + " HP";
+ });
+ $("timer").textContent = Math.ceil(remaining);
+}
+
+function drawBackground() {
+ const palettes = { arena: ["#101d3b", "#263e5c", "#4cc9ff"], forest: ["#10291e", "#315c3b", "#8ee56b"], desert: ["#59351d", "#b97936", "#ffd27a"], space: ["#100d2d", "#30205d", "#b98cff"] };
+ const pal = palettes[currentMap] || palettes.arena;
+ const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, pal[0]); g.addColorStop(1, pal[1]);
+ ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+ for (let i = 0; i < 9; i++) { ctx.fillStyle = "rgba(75,150,255,.09)"; ctx.beginPath(); ctx.arc(65 + i * 110, 160 + (i % 2) * 30, 38, 0, Math.PI * 2); ctx.fill(); }
+ ctx.fillStyle = "#17253d"; ctx.fillRect(0, FLOOR, W, H - FLOOR);
+ ctx.fillStyle = pal[2]; ctx.fillRect(0, FLOOR, W, 5);
+ ctx.strokeStyle = "rgba(120,170,220,.13)"; ctx.lineWidth = 1;
+ for (let x = 0; x < W; x += 50) { ctx.beginPath(); ctx.moveTo(x, FLOOR); ctx.lineTo(x, H); ctx.stroke(); }
+}
+
+function drawFighter(p) {
+ ctx.save(); ctx.translate(p.x, p.y); ctx.scale(p.face, 1);
+ if (p.hurt > 0 && Math.floor(performance.now() / 65) % 2 === 0) ctx.globalAlpha = .42;
+ const bob = p.onGround ? Math.sin(p.walk * 8) * 2 : 0;
+ ctx.fillStyle = "#0006"; ctx.beginPath(); ctx.ellipse(0, 3, 25, 6, 0, 0, Math.PI * 2); ctx.fill();
+ ctx.shadowBlur = 18; ctx.shadowColor = p.char.color; ctx.strokeStyle = p.char.color; ctx.lineWidth = 8; ctx.lineCap = "round"; ctx.lineJoin = "round";
+ ctx.fillStyle = "#f5f8ff"; ctx.beginPath(); ctx.arc(0, -94 + bob, 17, 0, Math.PI * 2); ctx.fill();
+ ctx.lineWidth = 4; ctx.stroke();
+ ctx.beginPath(); ctx.moveTo(0, -76 + bob); ctx.lineTo(0, -35 + bob); ctx.stroke();
+ ctx.beginPath(); ctx.moveTo(0, -68 + bob);
+ if (p.attackPose > 0) { ctx.lineTo(43, -61 + bob); ctx.lineTo(58, -63 + bob); }
+ else if (p.guard) { ctx.lineTo(22, -80 + bob); ctx.lineTo(35, -69 + bob); }
+ else { ctx.lineTo(-24, -48 + bob); ctx.moveTo(0, -68 + bob); ctx.lineTo(25, -48 + bob); }
+ ctx.stroke();
+ const swing = p.onGround ? Math.sin(p.walk * 8) * 10 : 0;
+ ctx.beginPath(); ctx.moveTo(0, -35 + bob); ctx.lineTo(-19 + swing, 0); ctx.moveTo(0, -35 + bob); ctx.lineTo(19 - swing, 0); ctx.stroke();
+ if (p.guard) { ctx.globalAlpha = .6; ctx.strokeStyle = "#8feaff"; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(20, -65, 34, -1.2, 1.2); ctx.stroke(); }
+ ctx.save(); ctx.scale(p.face, 1); ctx.shadowBlur = 0;
+ ctx.fillStyle = p.char.color; ctx.font = "bold 12px Arial"; ctx.textAlign = "center"; ctx.fillText(p.char.name, 0, -126);
+ ctx.fillStyle = "#ffe36b"; ctx.strokeStyle = "#17243a"; ctx.lineWidth = 4; ctx.font = "900 18px Arial";
+ ctx.strokeText(scores[p.index] + "점", 0, -157); ctx.fillText(scores[p.index] + "점", 0, -157);
+ ctx.restore(); ctx.restore();
+}
+
+function drawEffects() {
+ effects.forEach(e => {
+  const alpha = Math.max(0, e.life / e.max); ctx.save(); ctx.globalAlpha = alpha;
+  if (e.kind === "particle") { ctx.fillStyle = e.color; ctx.beginPath(); ctx.arc(e.x, e.y, e.size * alpha, 0, Math.PI * 2); ctx.fill(); }
+  else if (e.kind === "ring" || e.kind === "secretNova" || e.kind === "cosmicNova") {
+   const r = e.r || 250;
+   ctx.strokeStyle = e.color; ctx.lineWidth = (e.width || 12) * alpha;
+   ctx.beginPath(); ctx.arc(e.x, e.y, (1 - alpha) * r, 0, Math.PI * 2); ctx.stroke();
+  } else if (e.kind === "projectile") {
+   ctx.fillStyle = e.color; ctx.beginPath(); ctx.arc(e.x, e.y, e.size, 0, Math.PI * 2); ctx.fill();
+  } else if (e.kind === "cloud" || e.kind === "tornado" || e.kind === "gravity") {
+   ctx.strokeStyle = e.color; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(e.x, e.y, 40, 0, Math.PI * 2); ctx.stroke();
+  } else {
+   ctx.strokeStyle = e.color; ctx.lineWidth = 8; ctx.beginPath(); ctx.moveTo(e.x - 24, e.y + 20); ctx.lineTo(e.x + 24, e.y - 20); ctx.stroke();
+  }
+  ctx.restore();
+ });
+}
+
+function drawPreview() {
+ const c = $("preview"), v = c.getContext("2d");
+ v.clearRect(0, 0, c.width, c.height);
+ const grad = v.createLinearGradient(0, 0, 0, 240); grad.addColorStop(0, "#172b49"); grad.addColorStop(1, "#0b1425");
+ v.fillStyle = grad; v.fillRect(0, 0, 1000, 240);
+ v.fillStyle = "#344966"; v.fillRect(0, 190, 1000, 50);
+ [0, 1].forEach(i => {
+  const ch = getChar($("char" + (i + 1)).value), x = i === 0 ? 290 : 710, y = 190, face = i === 0 ? 1 : -1;
+  v.save(); v.translate(x, y); v.scale(face, 1);
+  v.shadowBlur = 20; v.shadowColor = ch.color; v.strokeStyle = ch.color; v.lineWidth = 9; v.lineCap = "round";
+  v.fillStyle = "#f5f8ff"; v.beginPath(); v.arc(0, -112, 19, 0, Math.PI * 2); v.fill(); v.stroke();
+  v.beginPath(); v.moveTo(0, -92); v.lineTo(0, -43); v.moveTo(0, -80); v.lineTo(-27, -57); v.moveTo(0, -80); v.lineTo(27, -57); v.moveTo(0, -43); v.lineTo(-22, 0); v.moveTo(0, -43); v.lineTo(22, 0); v.stroke();
+  v.shadowBlur = 0; v.fillStyle = ch.color; v.font = "bold 17px Arial"; v.textAlign = "center"; v.fillText(ch.name, 0, -155);
+  v.restore();
+ });
+ v.fillStyle = "#55bdff"; v.font = "bold 16px Arial"; v.textAlign = "center"; v.fillText("PLAYER 1", 290, 225);
+ v.fillStyle = "#ff6a7d"; v.fillText("PLAYER 2", 710, 225);
+}
+
+function render() {
+ ctx.save();
+ if (shake > 0) ctx.translate((Math.random() - .5) * shake, (Math.random() - .5) * shake);
+ if (!$("battleScreen").hidden) {
+  drawBackground();
+  if (fighters.length) { drawFighter(fighters[0]); drawFighter(fighters[1]); }
+  drawEffects();
+ }
+ ctx.restore();
+}
+
+function loop(now) {
+ const dt = last ? Math.min((now - last) / 1000, .033) : 0;
+ last = now;
+ if (running && !paused && myRole === 0) updateHost(dt);
+ render();
+ requestAnimationFrame(loop);
+}
+
+fillSelects(); bindTouch(); drawPreview();
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
