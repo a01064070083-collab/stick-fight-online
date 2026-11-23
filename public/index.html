@@ -130,7 +130,7 @@ button.gold{background:#b77c19;box-shadow:0 4px 0 #70490d}
   <label for="secretCode" style="font-weight:bold;color:#ffd66b">🔒 내 비밀 캐릭터 코드</label>
   <input id="secretCode" type="password" inputmode="numeric" placeholder="코드 입력" style="flex:1;min-width:130px;padding:10px;border-radius:8px;background:#243753;border:1px solid #55708f;color:white">
   <button id="unlockSecret" class="gold">잠금 해제</button>
-  <span id="secretMsg" style="font-size:12px;color:#b9c8df">8335 또는 1234567 입력</span>
+  <span id="secretMsg" style="font-size:12px;color:#b9c8df">비밀 코드를 입력하세요</span>
  </section>
 
  <section class="panel">
@@ -327,8 +327,8 @@ function fillSelects() {
 function unlockSecret() {
  const code = $("secretCode").value.trim();
  let id = null;
- if (code === "8335") id = "secret";
- else if (code === "1234567") id = "secret2";
+ if (code === "8355") id = "secret2";
+ else if (code === "1234567") id = "secret";
  else {
   $("secretMsg").textContent = "코드가 틀렸어. 다시 입력해 봐!";
   $("secretMsg").style.color = "#ff7180";
